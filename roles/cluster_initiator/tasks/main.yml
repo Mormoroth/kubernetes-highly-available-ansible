@@ -1,0 +1,32 @@
+---
+- name: Intializing Kubernetes cluster
+  shell: kubeadm init --pod-network-cidr {{ KUBERNETES_POD_CIDR }} --control-plane-endpoint {{ INTERNAL_LOADBALANCER_DOMAIN }} --upload-certs >> DO_NOT_TOUCH_CLUSTER_INITIALIZED
+  args:
+    chdir: $HOME
+    creates: DO_NOT_TOUCH_CLUSTER_INITIALIZED
+- name: Downlaod Helm installer
+  get_url:
+    url: https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3
+    dest: /tmp/helm-installer.sh
+    mode: "0777"
+- name: Installing helm on first master
+  shell: bash helm-installer.sh
+  args:
+    chdir: /tmp
+- name: Adding Cilium Helm repository
+  shell: helm repo add cilium https://helm.cilium.io/ >> DO_NOT_TOUCH_CILIUM_REPO_ADDED
+  args:
+    chdir: $HOME
+    creates: DO_NOT_TOUCH_CILIUM_REPO_ADDED
+- name: Updating Charts
+  shell: helm repo update
+- name: Installing Cilium CNI
+  shell: helm install cilium cilium/cilium --set ipam.mode=kubernetes --namespace kube-system >> DO_NOT_TOUCH_CILIUM_INSTALLED
+  args:
+    chdir: $HOME
+    creates: DO_NOT_TOUCH_CILIUM_INSTALLED
+# - name: Adding Ingress Helm repository
+#   shell: helm repo add cilium https://helm.cilium.io/ >> DO_NOT_TOUCH_NGINX_INGRESS_REPO_ADDED
+#   args:
+#     chdir: $HOME
+#     creates: DO_NOT_TOUCH_NGINX_INGRESS_REPO_ADDED

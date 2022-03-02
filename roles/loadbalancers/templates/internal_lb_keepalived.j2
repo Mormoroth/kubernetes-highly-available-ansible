@@ -1,0 +1,17 @@
+global_defs {
+    router_id LVS_DEVEL
+}
+
+vrrp_instance VI_1 {
+    state {{ hostvars[inventory_hostname]['VRRP_STATE'] | default('BACKUP') }}
+    interface {{ hostvars[inventory_hostname]['NETWORK_INTERFACE'] }}
+    virtual_router_id 88
+    priority 101
+    authentication {
+        auth_type PASS
+        auth_pass {{ hostvars[inventory_hostname]['VRRP_PASSWORD'] }}
+    }
+    virtual_ipaddress {
+        {{ hostvars[inventory_hostname]['VRRP_VIP'] }}
+    }
+}

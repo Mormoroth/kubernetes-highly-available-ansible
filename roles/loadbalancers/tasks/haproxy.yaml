@@ -1,0 +1,17 @@
+---
+- name: Internal loadbalancer Haproxy configurations
+  template:
+    src: internal_lb_haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: 0644
+  when: inventory_hostname in groups['internal_loadbalancers']
+  tags: haproxy_config
+  notify: Restart HAProxy
+- name: External loadbalancer Haproxy configurations
+  template:
+    src: external_lb_haproxy.j2
+    dest: /etc/haproxy/haproxy.cfg
+    mode: 0644
+  when: inventory_hostname in groups['external_loadbalancers']
+  tags: haproxy_config
+  notify: Restart HAProxy

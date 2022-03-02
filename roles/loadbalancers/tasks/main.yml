@@ -1,0 +1,5 @@
+---
+#Tasks to setup internal Highly Available LoadBalancer for Kubernetes api-server
+- import_tasks: pre.yaml
+- import_tasks: haproxy.yaml
+- import_tasks: keepalived.yaml

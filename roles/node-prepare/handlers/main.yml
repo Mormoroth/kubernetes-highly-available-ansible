@@ -1,0 +1,17 @@
+---
+- name: Restart Sysctl
+  shell: sysctl --system
+- name: Restart containerd
+  service:
+    name: containerd
+    state: restarted
+    enabled: yes
+- name: Restart Systemd-Resolved
+  service:
+    name: systemd-resolved
+    state: restarted
+- name: Restart crio
+  service:
+    name: cri-o
+    state: restarted
+    enabled: yes

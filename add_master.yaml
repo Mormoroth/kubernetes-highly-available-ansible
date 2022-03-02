@@ -1,0 +1,35 @@
+---
+- name: Internal and external loadbalancer configuration
+  hosts: loadbalancers
+  become: yes
+  roles:
+    - role: loadbalancers
+- name: Installing kubernetes node prequisite
+  hosts: kubernetes_new_masters
+  become: yes
+  roles:
+    - role: node-prepare
+- name: Generating join commands and facts
+  hosts: kubernetes_masters[0]
+  become: yes
+  tasks:
+    - name: Get temporary certificate key for control plane nodes
+      shell: kubeadm init phase upload-certs --upload-certs
+      register: control_plane_certificate_key
+    - name: Get Join Command
+      shell: kubeadm token create --print-join-command
+      register: join_command_raw
+    - name: set masters join command
+      set_fact:
+        join_command: "{{ join_command_raw.stdout_lines[0] }} --control-plane --certificate-key {{ control_plane_certificate_key.stdout_lines[2] }}"
+    - name: show command
+      debug:
+        msg: "{{ join_command }}"
+- hosts: kubernetes_new_masters
+  become: yes
+  tasks:
+    - name: Join new master to cluster
+      shell: "{{ hostvars[groups['kubernetes_masters'][0]].join_command }} >> node_joined.info"
+      args:
+        chdir: $HOME
+        creates: node_joined.info

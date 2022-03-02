@@ -1,0 +1,10 @@
+---
+# handlers file for internal_loadbalancer
+- name: Restart HAProxy
+  service:
+    name: haproxy
+    state: restarted
+- name: Restart Keepalived
+  service:
+    name: keepalived
+    state: restarted

@@ -1,0 +1,25 @@
+---
+- name: Adding required PPAs
+  apt_repository:
+    repo: "{{ item }}"
+  loop:
+    - ppa:vbernat/haproxy-2.4
+    - ppa:hnakamur/keepalived
+- name: Installing required packages
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+    install_recommends: yes
+  loop:
+    - software-properties-common
+    - haproxy=2.4.*
+    - keepalived
+- name: Start Haproxy and Keepalived
+  service:
+    name: "{{ item }}"
+    state: started
+    enabled: yes
+  loop:
+    - haproxy
+    - keepalived
+  ignore_errors: yes

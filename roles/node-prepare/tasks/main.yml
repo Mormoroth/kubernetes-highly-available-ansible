@@ -1,0 +1,112 @@
+---
+# Any cluster node{Master, Node, Infrastructure, Router} prequisite
+- name: Register each host's hostname
+  shell: hostname
+  register: hostname_value
+- name: Add hostname to /etc/hosts
+  lineinfile:
+    path: /etc/hosts
+    regexp: '^127\.0\.0\.1 localhost'
+    line: 127.0.0.1 localhost {{ hostname_value.stdout_lines[0] }}
+- name: Add beshkaf to systemd-resolve DNS servers
+  template:
+    src: templates/systemd-resolved.j2
+    dest: /etc/systemd/resolved.conf
+    mode: 0644
+  when: NEED_BESHKAF
+  notify: Restart Systemd-Resolved
+- name: Flush handlers
+  meta: flush_handlers
+- name: Install common required packages
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+    install_recommends: yes
+    state: latest
+  loop:
+    - software-properties-common
+    - apt-transport-https
+    - ca-certificates
+    - curl
+    - pip
+- name: Disable SWAP since kubernetes can't work with swap enabled
+  shell: |
+    swapoff -a
+- name: Copy kubernetes and containerd kernel module configuration file
+  copy:
+    src: files/k8s_containerd_kernel_modules.conf
+    dest: /etc/modules-load.d/kubernetes_containerd.conf
+    mode: 0644
+- name: Load kernel modules
+  modprobe:
+    name: "{{ item }}"
+    state: present
+  with_items:
+    - overlay
+    - br_netfilter
+- name: Copy kubernetes sysctl configuration file
+  copy:
+    src: files/kubernetes_sysctl.conf
+    dest: /etc/sysctl.d/kubernetes_sysctl.conf
+    mode: 0644
+  notify: Restart Sysctl
+- name: Flush handlers
+  meta: flush_handlers
+- name: Add CRI-O Repository
+  template:
+    src: templates/devel:kubic:libcontainers:stable:cri-o:1.20.list.j2
+    dest: /etc/apt/sources.list.d/devel:kubic:libcontainers:stable.list
+    mode: 0644
+- name: Add CRI-O RunC Repository
+  template:
+    src: templates/devel:kubic:libcontainers:stable.list.j2
+    dest: /etc/apt/sources.list.d/devel:kubic:libcontainers:stable:cri-o:{{CRIO_VERSION}}.list
+    mode: 0644
+- name: Add an Apt signing key to a specific keyring file
+  apt_key:
+    url: https://download.opensuse.org/repositories/devel:/kubic:/libcontainers:/stable/{{CRIO_BASE_OS}}/Release.key
+    keyring: /etc/apt/trusted.gpg.d/libcontainers.gpg
+- name: Add an Apt signing key to a specific keyring file
+  apt_key:
+    url: https://download.opensuse.org/repositories/devel:kubic:libcontainers:stable:cri-o:{{CRIO_VERSION}}/{{CRIO_BASE_OS}}/Release.key
+    keyring: /etc/apt/trusted.gpg.d/libcontainers-cri-o.gpg
+- name: Install kubernetes required packages
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+    install_recommends: yes
+  loop:
+    - cri-o
+    - cri-o-runc
+  notify: Restart crio
+- name: Flush handlers
+  meta: flush_handlers
+# - name: Create containerd directory
+#   file:
+#     path: /etc/containerd
+#     state: directory
+#     mode: 0755
+# - name: Copy containerd configuration
+#   copy:
+#     src: files/containerd.toml
+#     dest: /etc/containerd/config.toml
+#     mode: 0644
+#   notify: Restart containerd
+- name: add Google Cloud public signing key
+  apt_key:
+    url: https://packages.cloud.google.com/apt/doc/apt-key.gpg
+    state: present
+- name: add Kubernetes apt repository
+  apt_repository:
+    repo: deb http://apt.kubernetes.io/ kubernetes-xenial main
+    state: present
+    filename: "kubernetes"
+- name: Installing kubeadm, kubelet, kubectl
+  apt:
+    name: "{{ item }}"
+    update_cache: yes
+    install_recommends: no
+  loop:
+    - kubectl={{ KUBERNETES_VERSION }}
+    - kubelet={{ KUBERNETES_VERSION }}
+    - kubeadm={{ KUBERNETES_VERSION }}
